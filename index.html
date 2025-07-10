@@ -2,26 +2,56 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <title>Tambah Nomor ke GitHub</title>
+  <title>Tambah Nomor ke Database GitHub</title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; background: #1e1e1e; color: #fff; }
-    input, button {
-      padding: 10px; border-radius: 8px; border: none;
-      margin-right: 10px; font-size: 16px;
+    body {
+      font-family: Arial, sans-serif;
+      background: #0e0e0e;
+      color: #fff;
+      padding: 30px;
+      max-width: 600px;
+      margin: auto;
     }
-    input { width: 250px; }
-    button { background: #28a745; color: #fff; cursor: pointer; }
-    .log { margin-top: 20px; }
+    h2 {
+      color: #00ffcc;
+    }
+    input, button {
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      margin-right: 10px;
+    }
+    input {
+      width: 250px;
+    }
+    button {
+      background: #00cc66;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #00b359;
+    }
+    .log {
+      margin-top: 20px;
+      padding: 10px;
+      background: #1a1a1a;
+      border-left: 4px solid #00ffcc;
+      border-radius: 6px;
+    }
   </style>
 </head>
 <body>
-  <h2>📥 Tambah Nomor ke Database (GitHub)</h2>
-  <input type="text" id="nomor" placeholder="Masukkan nomor (cth: 62812xxx)" />
+  <h2>📥 Tambahkan Nomor ke Database GitHub</h2>
+  <input type="text" id="nomor" placeholder="Masukkan nomor (cth: 6281234567890)" />
   <button onclick="addNumber()">Tambah</button>
-  <div class="log" id="log"></div>
+
+  <div class="log" id="log">Silakan masukkan nomor dan klik "Tambah".</div>
 
   <script>
-    const GITHUB_TOKEN = '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'; // 🚫 JANGAN GUNAKAN DI PRODUKSI!
+    // 🛑 Gunakan token ini hanya untuk testing lokal (BUKAN PRODUKSI)
+    const GITHUB_TOKEN = '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';
     const REPO_OWNER = 'HanzyyOffc';
     const REPO_NAME = 'HanzyyOffc';
     const FILE_PATH = 'autenticator';
@@ -29,22 +59,34 @@
     async function addNumber() {
       const newNumber = document.getElementById('nomor').value.trim();
       const log = document.getElementById('log');
+
+      // Validasi input
       if (!/^628[0-9]{6,}$/.test(newNumber)) {
-        log.innerHTML = '❌ Format nomor tidak valid!';
+        log.innerHTML = '❌ Format nomor tidak valid. Harus dimulai dengan 628 dan hanya angka.';
         return;
       }
 
       const apiUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`;
+
       try {
+        // Ambil isi file dari GitHub
         const res = await fetch(apiUrl, {
           headers: {
             Authorization: `token ${GITHUB_TOKEN}`,
             Accept: 'application/vnd.github.v3+json'
           }
         });
+
+        if (!res.ok) throw new Error('Gagal mengambil data dari GitHub');
         const data = await res.json();
-        const content = atob(data.content);
-        const jsonData = JSON.parse(content);
+
+        const cleanedBase64 = data.content.replace(/\n/g, '');
+        const content = atob(cleanedBase64);
+        const jsonData = JSON.parse(content || '{"dbny": []}');
+
+        if (!Array.isArray(jsonData.dbny)) {
+          jsonData.dbny = [];
+        }
 
         if (!jsonData.dbny.includes(newNumber)) {
           jsonData.dbny.push(newNumber);
@@ -66,13 +108,16 @@
 
           if (updateRes.ok) {
             log.innerHTML = `✅ Nomor ${newNumber} berhasil ditambahkan ke database!`;
+            document.getElementById('nomor').value = '';
           } else {
-            log.innerHTML = `❌ Gagal update: ${updateRes.statusText}`;
+            const errRes = await updateRes.json();
+            log.innerHTML = `❌ Gagal update: ${errRes.message}`;
           }
         } else {
           log.innerHTML = `⚠️ Nomor ${newNumber} sudah ada di database.`;
         }
       } catch (err) {
+        console.error(err);
         log.innerHTML = '❌ Error: ' + err.message;
       }
     }
